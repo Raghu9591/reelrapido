@@ -537,13 +537,18 @@ document.addEventListener('DOMContentLoaded', function(){
 
 // Compares what the customer entered with the CleverTap profile. Results go to hidden fields (sheet) and an event.
 function checkAgainstCleverTap(form, enteredName, enteredPhone, enteredCity){
-  var ctName = ctAttr('Name');
-  var ctPhone = normalizePhone(ctAttr('Phone'));
-  var ctCity = ctAttr('City');
+  // Registered details come from the link (merge tags from CleverTap), not from the browser
+  var q = new URLSearchParams(location.search);
+  var uid = (q.get('uid') || '').trim();
+  var ctName = (q.get('fname') || '').trim();
+  var ctPhone = normalizePhone(q.get('fmobile'));
+  var ctCity = (q.get('fcity') || '').trim();
+
   var nameMatch = !ctName ? 'Not found' : (ctName.toLowerCase() === enteredName.trim().toLowerCase() ? 'Yes' : 'No');
   var phoneMatch = !ctPhone ? 'Not found' : (ctPhone === enteredPhone ? 'Yes' : 'No');
   var cityMatch = !ctCity ? 'Not found' : (ctCity.toLowerCase() === enteredCity.trim().toLowerCase() ? 'Yes' : 'No');
 
+  setHidden(form, 'uid', uid);
   setHidden(form, 'ctName', ctName);
   setHidden(form, 'ctPhone', ctPhone);
   setHidden(form, 'ctCity', ctCity);
