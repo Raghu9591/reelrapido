@@ -527,11 +527,6 @@ document.addEventListener('DOMContentLoaded', function(){
   var linkPhone = normalizePhone(q.get('fmobile') || q.get('mobile') || q.get('phone'));
   var linkCity = (q.get('fcity') || q.get('city') || '').trim();
 
-  var phoneEl = document.getElementById('fPhone');
-  var cityEl = document.getElementById('fCity');
-  if (linkPhone && phoneEl && !phoneEl.value) phoneEl.value = linkPhone;
-  if (linkCity && cityEl && !cityEl.value) cityEl.value = linkCity;
-
   if (/^\d{10}$/.test(linkPhone) && window.clevertap && clevertap.onUserLogin) {
     var site = { Phone: '+91' + linkPhone };
     if (linkCity) site.City = linkCity;
@@ -541,17 +536,21 @@ document.addEventListener('DOMContentLoaded', function(){
 });
 
 // Compares what the customer entered with the CleverTap profile. Results go to hidden fields (sheet) and an event.
-function checkAgainstCleverTap(form, enteredPhone, enteredCity){
+function checkAgainstCleverTap(form, enteredName, enteredPhone, enteredCity){
+  var ctName = ctAttr('Name');
   var ctPhone = normalizePhone(ctAttr('Phone'));
   var ctCity = ctAttr('City');
+  var nameMatch = !ctName ? 'Not found' : (ctName.toLowerCase() === enteredName.trim().toLowerCase() ? 'Yes' : 'No');
   var phoneMatch = !ctPhone ? 'Not found' : (ctPhone === enteredPhone ? 'Yes' : 'No');
   var cityMatch = !ctCity ? 'Not found' : (ctCity.toLowerCase() === enteredCity.trim().toLowerCase() ? 'Yes' : 'No');
 
+  setHidden(form, 'ctName', ctName);
   setHidden(form, 'ctPhone', ctPhone);
   setHidden(form, 'ctCity', ctCity);
+  setHidden(form, 'nameMatch', nameMatch);
   setHidden(form, 'phoneMatch', phoneMatch);
   setHidden(form, 'cityMatch', cityMatch);
-  trackEvent('Details Checked', { phone_match: phoneMatch, city_match: cityMatch });
+  trackEvent('Details Checked', { name_match: nameMatch, phone_match: phoneMatch, city_match: cityMatch });
 }
 
 (function(){
@@ -754,7 +753,7 @@ document.getElementById('applyForm').addEventListener('submit', function(e){
   form.querySelector('[name="status"]').value='Submitted';
   form.querySelector('[name="source"]').value='Rapido City Champs';
 
-  checkAgainstCleverTap(form, cleanPhone, city);
+  checkAgainstCleverTap(form, name, cleanPhone, city);
 
   btn.disabled=true;
   btn.textContent='Submitting…';
