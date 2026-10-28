@@ -502,6 +502,58 @@ function trackEvent(name, extra){
   } catch (e) {}
 }
 
+// ---- Phone & city: prefill from link, identify in CleverTap, check against CleverTap ----
+function normalizePhone(v){
+  return (v || '').replace(/\D/g, '').slice(-10);
+}
+
+function ctAttr(name){
+  try {
+    if (!window.clevertap || !clevertap.profile || !clevertap.profile.getAttribute) return '';
+    var v = clevertap.profile.getAttribute(name);
+    if (Array.isArray(v)) v = v[0];
+    return (v || '').toString().trim();
+  } catch (e) { return ''; }
+}
+
+function setHidden(form, name, value){
+  var el = form.querySelector('input[name="' + name + '"]');
+  if (!el) { el = document.createElement('input'); el.type = 'hidden'; el.name = name; form.appendChild(el); }
+  el.value = value;
+}
+
+document.addEventListener('DOMContentLoaded', function(){
+  var q = new URLSearchParams(location.search);
+  var linkPhone = normalizePhone(q.get('fmobile') || q.get('mobile') || q.get('phone'));
+  var linkCity = (q.get('fcity') || q.get('city') || '').trim();
+
+  var phoneEl = document.getElementById('fPhone');
+  var cityEl = document.getElementById('fCity');
+  if (linkPhone && phoneEl && !phoneEl.value) phoneEl.value = linkPhone;
+  if (linkCity && cityEl && !cityEl.value) cityEl.value = linkCity;
+
+  if (/^\d{10}$/.test(linkPhone) && window.clevertap && clevertap.onUserLogin) {
+    var site = { Phone: '+91' + linkPhone };
+    if (linkCity) site.City = linkCity;
+    clevertap.onUserLogin.push({ Site: site });
+    trackEvent('Mobile Number Captured', { capture_source: 'link' });
+  }
+});
+
+// Compares what the customer entered with the CleverTap profile. Results go to hidden fields (sheet) and an event.
+function checkAgainstCleverTap(form, enteredPhone, enteredCity){
+  var ctPhone = normalizePhone(ctAttr('Phone'));
+  var ctCity = ctAttr('City');
+  var phoneMatch = !ctPhone ? 'Not found' : (ctPhone === enteredPhone ? 'Yes' : 'No');
+  var cityMatch = !ctCity ? 'Not found' : (ctCity.toLowerCase() === enteredCity.trim().toLowerCase() ? 'Yes' : 'No');
+
+  setHidden(form, 'ctPhone', ctPhone);
+  setHidden(form, 'ctCity', ctCity);
+  setHidden(form, 'phoneMatch', phoneMatch);
+  setHidden(form, 'cityMatch', cityMatch);
+  trackEvent('Details Checked', { phone_match: phoneMatch, city_match: cityMatch });
+}
+
 (function(){
   var fired = false;
   function logToSheet(){
@@ -701,6 +753,8 @@ document.getElementById('applyForm').addEventListener('submit', function(e){
   form.querySelector('[name="campaignHashtag"]').value='FREERIDE';
   form.querySelector('[name="status"]').value='Submitted';
   form.querySelector('[name="source"]').value='Rapido City Champs';
+
+  checkAgainstCleverTap(form, cleanPhone, city);
 
   btn.disabled=true;
   btn.textContent='Submitting…';
